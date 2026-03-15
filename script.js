@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost:3000/api';
+const API_URL = 'https://online-bookstore.onrender.com/api';
 
 let currentUser = null;
 let token = localStorage.getItem('bookstore_token');
