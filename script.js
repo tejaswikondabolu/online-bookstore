@@ -446,6 +446,7 @@ async function handleForgotPassword(e) {
     const data = await response.json();
 
     if (response.ok) {
+      alert(`✅ Token generated!\n\nEmail: ${email}\nToken: ${data.token}\n\n(Copy this token and use it to reset password)`);
       document.getElementById('display_token').textContent = data.token || 'N/A';
       document.getElementById('forgot_modal').style.display = 'none';
       document.getElementById('reset_modal').style.display = 'flex';
