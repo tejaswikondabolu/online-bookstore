@@ -14,6 +14,7 @@ const TOKENS_FILE = './password-reset-tokens.json';
 
 app.use(cors());
 app.use(express.json());
+app.use(express.static('../'));
 
 let db = {
   users: [],
