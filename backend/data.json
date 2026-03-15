@@ -4,6 +4,11 @@
       "id": "ba0f5cd0-662e-4162-9c57-996778d5f4ad",
       "email": "tejakondabolu11@gmail.com",
       "password": "$2a$10$8/KhXkxBYLKLrjC9f74QFe0jyw2aavnW21CoH9AvP4TmN8gZ3iVgC"
+    },
+    {
+      "id": "3dc80e53-651d-482c-b057-a5f6b84f4f6d",
+      "email": "test@test.com",
+      "password": "$2a$10$TKACEzfdPAaxRemIdtP8veWxZhpTpJDPcfuGtlDrYhxATHfd90NBe"
     }
   ],
   "books": [

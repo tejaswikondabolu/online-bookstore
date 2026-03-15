@@ -204,7 +204,7 @@ app.post('/api/auth/forgot-password', (req, res) => {
     const token = uuidv4();
     passwordResetTokens[token] = { email, expires: Date.now() + 3600000 };
     console.log(`🔐 Password Reset Token for ${email}: ${token}`);
-    return res.json({ message: 'Password reset token generated (check server console)' });
+    return res.json({ message: 'Password reset token generated', token: token });
   }
   res.json({ error: 'MySQL mode' });
 });

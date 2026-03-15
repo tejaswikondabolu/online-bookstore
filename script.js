@@ -86,6 +86,18 @@ function setupEventListeners() {
   const forgotForm = document.getElementById('forgot_form');
   forgotForm.addEventListener('submit', handleForgotPassword);
 
+  const resetModal = document.getElementById('reset_modal');
+  const closeReset = document.querySelector('.close-reset');
+  closeReset.addEventListener('click', () => {
+    resetModal.style.display = 'none';
+  });
+  resetModal.addEventListener('click', (e) => {
+    if (e.target === resetModal) resetModal.style.display = 'none';
+  });
+
+  const resetForm = document.getElementById('reset_form');
+  resetForm.addEventListener('submit', handleResetPassword);
+
   const successModal = document.getElementById('order_success_modal');
   const closeSuccess = document.querySelector('.close-success');
   closeSuccess.addEventListener('click', () => {
@@ -434,13 +446,47 @@ async function handleForgotPassword(e) {
     const data = await response.json();
 
     if (response.ok) {
-      alert('Password reset instructions sent to your email');
-      closeForgotModal();
+      document.getElementById('display_token').textContent = data.token || 'N/A';
+      document.getElementById('forgot_modal').style.display = 'none';
+      document.getElementById('reset_modal').style.display = 'flex';
+      document.getElementById('reset_form').dataset.email = email;
     } else {
       document.getElementById('forgot_error').textContent = data.error;
     }
   } catch (error) {
     document.getElementById('forgot_error').textContent = 'Network error. Please try again.';
+  }
+}
+
+async function handleResetPassword(e) {
+  e.preventDefault();
+  const email = document.getElementById('reset_form').dataset.email;
+  const token = document.getElementById('reset_token').value.trim();
+  const newPassword = document.getElementById('new_password').value.trim();
+
+  if (!token || !newPassword) {
+    document.getElementById('reset_error').textContent = 'Please fill all fields';
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_URL}/auth/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, token, newPassword })
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      alert('Password reset successful! Please login.');
+      document.getElementById('reset_modal').style.display = 'none';
+      openModal();
+    } else {
+      document.getElementById('reset_error').textContent = data.error;
+    }
+  } catch (error) {
+    document.getElementById('reset_error').textContent = 'Network error. Please try again.';
   }
 }
 
