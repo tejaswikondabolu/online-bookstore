@@ -192,6 +192,42 @@ app.get('/api/orders', authenticateToken, (req, res) => {
   res.json({ error: 'MySQL mode' });
 });
 
+let passwordResetTokens = {};
+
+app.post('/api/auth/forgot-password', (req, res) => {
+  const { email } = req.body;
+  if (!USE_MYSQL) {
+    const user = db.users.find(u => u.email === email);
+    if (!user) {
+      return res.json({ message: 'If email exists, reset link sent' });
+    }
+    const token = uuidv4();
+    passwordResetTokens[token] = { email, expires: Date.now() + 3600000 };
+    console.log(`🔐 Password Reset Token for ${email}: ${token}`);
+    return res.json({ message: 'Password reset token generated (check server console)' });
+  }
+  res.json({ error: 'MySQL mode' });
+});
+
+app.post('/api/auth/reset-password', async (req, res) => {
+  const { email, token, newPassword } = req.body;
+  if (!USE_MYSQL) {
+    const resetData = passwordResetTokens[token];
+    if (!resetData || resetData.email !== email || resetData.expires < Date.now()) {
+      return res.status(400).json({ error: 'Invalid or expired token' });
+    }
+    const user = db.users.find(u => u.email === email);
+    if (user) {
+      user.password = await bcrypt.hash(newPassword, 10);
+      saveData();
+      delete passwordResetTokens[token];
+      return res.json({ message: 'Password reset successful' });
+    }
+    return res.status(400).json({ error: 'User not found' });
+  }
+  res.json({ error: 'MySQL mode' });
+});
+
 app.get('/api/health', (req, res) => res.json({ 
   status: 'ok', 
   timestamp: new Date().toISOString(),
