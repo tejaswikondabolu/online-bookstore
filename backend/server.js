@@ -9,12 +9,13 @@ const fs = require('fs');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const USE_MYSQL = process.env.DB_HOST && process.env.DB_HOST !== 'localhost';
-const DATA_FILE = './data.json';
-const TOKENS_FILE = './password-reset-tokens.json';
+const path = require('path');
+const DATA_FILE = path.join(__dirname, 'data.json');
+const TOKENS_FILE = path.join(__dirname, 'password-reset-tokens.json');
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static('../'));
+app.use(express.static('.'));
 
 let db = {
   users: [],
