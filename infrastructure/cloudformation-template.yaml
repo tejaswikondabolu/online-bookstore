@@ -1,0 +1,359 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Cloud-native Online Book Store Infrastructure'
+
+Parameters:
+  Environment:
+    Type: String
+    Default: production
+    AllowedValues:
+      - production
+      - staging
+      - development
+
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Name of an existing EC2 KeyPair
+
+  InstanceType:
+    Type: String
+    Default: t2.micro
+    Description: EC2 instance type
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Sub bookstore-vpc-${Environment}
+
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub bookstore-public-subnet-1-${Environment}
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.2.0/24
+      AvailabilityZone: !Select [1, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub bookstore-public-subnet-2-${Environment}
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub bookstore-igw-${Environment}
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub bookstore-public-rt-${Environment}
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  SubnetRouteTableAssociation1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      RouteTableId: !Ref PublicRouteTable
+
+  SubnetRouteTableAssociation2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet2
+      RouteTableId: !Ref PublicRouteTable
+
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Bookstore DB Subnet Group
+      SubnetIds:
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+
+  DBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: RDS Security Group
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          CidrIp: 10.0.0.0/16
+
+  BookStoreDB:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceIdentifier: !Sub bookstore-db-${Environment}
+      Engine: mysql
+      DBInstanceClass: db.t2.micro
+      AllocatedStorage: 20
+      StorageType: gp2
+      MasterUsername: admin
+      MasterUserPassword: '{{resolve:secretsmanager:bookstore-db-password:SecretString:password}}'
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      VPCSecurityGroups:
+        - !Ref DBSecurityGroup
+      BackupRetentionPeriod: 7
+      MultiAZ: false
+      Tags:
+        - Key: Name
+          Value: !Sub bookstore-db-${Environment}
+
+  EC2SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: EC2 Security Group for Bookstore
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyName
+      ImageId: ami-0c55b159cbfafe1f0
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: true
+          DeviceIndex: 0
+          SubnetId: !Ref PublicSubnet1
+          GroupSet:
+            - !Ref EC2SecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub bookstore-ec2-${Environment}
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          yum update -y
+          yum install -y docker
+          service docker start
+          usermod -a -G docker ec2-user
+          curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+          chmod +x /usr/local/bin/docker-compose
+
+  PasswordResetTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: PasswordResets
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: email
+          AttributeType: S
+      KeySchema:
+        - AttributeName: email
+          KeyType: HASH
+
+  PasswordResetSNSTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub PasswordResetTopic-${Environment}
+      DisplayName: Bookstore Password Reset
+
+  PasswordResetLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub bookstore-lambda-role-${Environment}
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+  PasswordResetLambdaPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub bookstore-lambda-policy-${Environment}
+      Roles:
+        - !Ref PasswordResetLambdaRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - dynamodb:PutItem
+              - dynamodb:GetItem
+              - dynamodb:DeleteItem
+            Resource: !GetAtt PasswordResetTable.Arn
+          - Effect: Allow
+            Action:
+              - sns:Publish
+            Resource: !Ref PasswordResetSNSTopic
+
+  PasswordResetLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub bookstore-password-reset-${Environment}
+      Handler: index.handler
+      Role: !GetAtt PasswordResetLambdaRole.Arn
+      Runtime: nodejs18.x
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref PasswordResetTable
+          SNS_TOPIC_ARN: !Ref PasswordResetSNSTopic
+      Code:
+        ZipFile: |
+          const AWS = require('aws-sdk');
+          const { v4: uuidv4 } = require('uuid');
+          const docClient = new AWS.DynamoDB.DocumentClient();
+          const sns = new AWS.SNS();
+          exports.handler = async (event) => {
+            const response = { statusCode: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } };
+            try {
+              const { httpMethod, body } = event;
+              if (httpMethod === 'POST') {
+                const { email } = JSON.parse(body);
+                if (!email) { response.statusCode = 400; response.body = JSON.stringify({ error: 'Email is required' }); return response; }
+                const resetToken = uuidv4();
+                const expires = Date.now() + 3600000;
+                await docClient.put({ TableName: process.env.DYNAMODB_TABLE, Item: { email, token: resetToken, expires } }).promise();
+                await sns.publish({ TopicArn: process.env.SNS_TOPIC_ARN, Message: JSON.stringify({ email, message: `Your password reset token is: ${resetToken}` }), Subject: 'Password Reset Request' }).promise();
+                response.body = JSON.stringify({ message: 'Password reset instructions sent to email' });
+              } else { response.statusCode = 405; response.body = JSON.stringify({ error: 'Method not allowed' }); }
+            } catch (error) { console.error('Error:', error); response.statusCode = 500; response.body = JSON.stringify({ error: 'Internal server error' }); }
+            return response;
+          };
+
+  LambdaApiGateway:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: !Sub bookstore-api-${Environment}
+      Description: Bookstore API for password reset
+
+  LambdaResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref LambdaApiGateway
+      ParentId: !GetAtt LambdaApiGateway.RootResourceId
+      PathPart: forgot-password
+
+  LambdaMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref LambdaApiGateway
+      ResourceId: !Ref LambdaResource
+      HttpMethod: POST
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${PasswordResetLambda.Arn}/invocations
+
+  LambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref PasswordResetLambda
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${LambdaApiGateway}/*
+
+  CloudWatchLogsGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/ec2/bookstore-${Environment}
+      RetentionInDays: 7
+
+  IAMRoleforEC2:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub bookstore-ec2-role-${Environment}
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: !Sub bookstore-ec2-profile-${Environment}
+      Roles:
+        - !Ref IAMRoleforEC2
+
+Outputs:
+  VPCId:
+    Description: VPC ID
+    Value: !Ref VPC
+    Export:
+      Name: !Sub ${AWS::StackName}-VPC-ID
+
+  EC2PublicIP:
+    Description: EC2 Public IP
+    Value: !GetAtt EC2Instance.PublicIp
+    Export:
+      Name: !Sub ${AWS::StackName}-EC2-Public-IP
+
+  EC2PublicDNS:
+    Description: EC2 Public DNS
+    Value: !GetAtt EC2Instance.PublicDnsName
+    Export:
+      Name: !Sub ${AWS::StackName}-EC2-Public-DNS
+
+  DatabaseEndpoint:
+    Description: RDS Database Endpoint
+    Value: !GetAtt BookStoreDB.Endpoint.Address
+    Export:
+      Name: !Sub ${AWS::StackName}-DB-Endpoint
+
+  LambdaFunctionName:
+    Description: Password Reset Lambda Function Name
+    Value: !Ref PasswordResetLambda
+    Export:
+      Name: !Sub ${AWS::StackName}-Lambda-Function
+
+  ApiGatewayEndpoint:
+    Description: API Gateway Endpoint
+    Value: !Sub https://${LambdaApiGateway}.execute-api.${AWS::Region}.amazonaws.com/prod
+    Export:
+      Name: !Sub ${AWS::StackName}-API-Endpoint

@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - DB_HOST=db
+      - DB_USER=root
+      - DB_PASSWORD=bookstore123
+      - DB_NAME=bookstore
+      - JWT_SECRET=your_jwt_secret_key
+      - SNS_TOPIC_ARN=${SNS_TOPIC_ARN}
+      - AWS_REGION=us-east-1
+    depends_on:
+      - db
+    restart: unless-stopped
+
+  db:
+    image: mysql:8.0
+    environment:
+      - MYSQL_ROOT_PASSWORD=bookstore123
+      - MYSQL_DATABASE=bookstore
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    restart: unless-stopped
+
+volumes:
+  mysql_data:

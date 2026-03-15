@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book-Store</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="script.js" defer></script>
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container">
+        <nav class="nav-bar">
+            <div class="nav1">
+                <a href="">Browse Categories</a>
+                <input type="text" id="search_book" placeholder="Search Book">
+            </div>
+            <h3>Online Book Store</h3>
+            <div class="icon-about">
+                <button id="cart_btn" class="cart-btn" style="display: none;">
+                    <span class="material-icons">shopping_cart</span>
+                    <span id="cart_count">0</span>
+                </button>
+                <span id="user_email"></span>
+                <button id="auth_btn" class="auth-btn">Login</button>
+            </div>
+        </nav>
+
+        <main id="books_container">
+        </main>
+    </div>
+
+    <div id="auth_modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2 id="auth_title">Login</h2>
+            <form id="auth_form">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" placeholder="Enter your email">
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" placeholder="Enter your password">
+                </div>
+                <div class="form-group confirm-pass" style="display: none;">
+                    <label for="confirm_password">Confirm Password</label>
+                    <input type="password" id="confirm_password" placeholder="Confirm your password">
+                </div>
+                <div id="auth_error" class="error"></div>
+                <button type="submit" id="submit_btn">Login</button>
+            </form>
+            <p class="toggle-auth">
+                <span id="toggle_auth">Don't have an account? Register</span>
+            </p>
+            <p class="toggle-auth">
+                <span id="forgot_password" style="font-size: 12px;">Forgot Password?</span>
+            </p>
+        </div>
+    </div>
+
+    <div id="cart_modal" class="modal">
+        <div class="modal-content cart-content">
+            <span class="close-cart">&times;</span>
+            <h2>Shopping Cart</h2>
+            <div id="cart_items"></div>
+            <div class="cart-total">
+                <h3>Total: $<span id="cart_total">0.00</span></h3>
+                <button id="checkout_btn" class="checkout-btn">Buy Now</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="forgot_modal" class="modal">
+        <div class="modal-content">
+            <span class="close-forgot">&times;</span>
+            <h2>Reset Password</h2>
+            <form id="forgot_form">
+                <div class="form-group">
+                    <label for="forgot_email">Email</label>
+                    <input type="email" id="forgot_email" placeholder="Enter your email">
+                </div>
+                <div id="forgot_error" class="error"></div>
+                <button type="submit" id="forgot_btn">Send Reset Link</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="order_success_modal" class="modal">
+        <div class="modal-content">
+            <span class="close-success">&times;</span>
+            <div style="text-align: center;">
+                <span class="material-icons" style="font-size: 64px; color: #43e97b;">check_circle</span>
+                <h2>Order Placed Successfully!</h2>
+                <p>Order ID: <span id="order_id"></span></p>
+                <p>Total: $<span id="order_total"></span></p>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
