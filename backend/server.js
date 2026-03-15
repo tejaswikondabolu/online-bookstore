@@ -15,7 +15,7 @@ const TOKENS_FILE = path.join(__dirname, 'password-reset-tokens.json');
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static('.'));
+app.use(express.static(path.join(__dirname, '..')));
 
 let db = {
   users: [],
