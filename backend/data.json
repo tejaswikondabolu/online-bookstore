@@ -9,6 +9,16 @@
       "id": "3dc80e53-651d-482c-b057-a5f6b84f4f6d",
       "email": "test@test.com",
       "password": "$2a$10$TKACEzfdPAaxRemIdtP8veWxZhpTpJDPcfuGtlDrYhxATHfd90NBe"
+    },
+    {
+      "id": "70334031-e767-45e8-b80b-962f4d042d0d",
+      "email": "demo@demo.com",
+      "password": "$2a$10$8DnHWv9m8nIS6wiYy9IuleQ5hsXYRGTZvyOLONqlaJ6iO5lVQXnpC"
+    },
+    {
+      "id": "0cb84482-8d3b-480a-93f8-dab2feb003fd",
+      "email": "tejaswikondabolu@gmail.com",
+      "password": "$2a$10$DGmUg0GXutQAnhyLNgGNh.L6SKMw5.xodoP3el3.XWLTC3G/0uqq2"
     }
   ],
   "books": [
@@ -85,7 +95,20 @@
       "price": 64.99
     }
   ],
-  "cart": [],
+  "cart": [
+    {
+      "id": "fa29f7e9-f72a-4a3e-86d7-8617c4d55ba6",
+      "userId": "0cb84482-8d3b-480a-93f8-dab2feb003fd",
+      "bookId": "ddc9555e-44b1-4583-9ab4-8a2ed2c1b176",
+      "quantity": 1
+    },
+    {
+      "id": "b0fea3de-6cb3-4c67-965e-66208aa8eab9",
+      "userId": "0cb84482-8d3b-480a-93f8-dab2feb003fd",
+      "bookId": "a5fe113e-d4fa-466d-92d2-7d72610ce4e9",
+      "quantity": 1
+    }
+  ],
   "orders": [
     {
       "id": "d5108ea2-e23f-442b-92ec-c74aa2ff4cca",
