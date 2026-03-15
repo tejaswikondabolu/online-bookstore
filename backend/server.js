@@ -8,12 +8,18 @@ const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const USE_MYSQL = process.env.DB_HOST && process.env.DB_HOST !== 'localhost';
 const DATA_FILE = './data.json';
 
 app.use(cors());
 app.use(express.json());
 
-let data = { users: [], books: [], cart: [], orders: [] };
+let db = {
+  users: [],
+  books: [],
+  cart: [],
+  orders: []
+};
 
 const defaultBooks = [
   { title: 'Clean Code', author: 'Robert C. Martin', image: 'https://m.media-amazon.com/images/I/41jEbK-jG+L.jpg', rating: 4.7, info: 'A handbook of agile software craftsmanship', price: 29.99 },
@@ -28,18 +34,20 @@ const defaultBooks = [
 
 function loadData() {
   if (fs.existsSync(DATA_FILE)) {
-    data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+    db = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
   } else {
-    data.books = defaultBooks.map(b => ({ id: uuidv4(), ...b }));
+    db.books = defaultBooks.map(b => ({ id: uuidv4(), ...b }));
     saveData();
   }
 }
 
 function saveData() {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+  fs.writeFileSync(DATA_FILE, JSON.stringify(db, null, 2));
 }
 
-loadData();
+if (!USE_MYSQL) {
+  loadData();
+}
 
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -55,15 +63,18 @@ const authenticateToken = (req, res, next) => {
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { email, password } = req.body;
-    if (data.users.find(u => u.email === email)) {
-      return res.status(400).json({ error: 'Email already registered' });
+    if (!USE_MYSQL) {
+      if (db.users.find(u => u.email === email)) {
+        return res.status(400).json({ error: 'Email already registered' });
+      }
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const user = { id: uuidv4(), email, password: hashedPassword };
+      db.users.push(user);
+      saveData();
+      const token = jwt.sign({ id: user.id, email }, process.env.JWT_SECRET || 'bookstore_secret_key', { expiresIn: '24h' });
+      return res.json({ token, user: { id: user.id, email } });
     }
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const user = { id: uuidv4(), email, password: hashedPassword };
-    data.users.push(user);
-    saveData();
-    const token = jwt.sign({ id: user.id, email }, process.env.JWT_SECRET || 'bookstore_secret_key', { expiresIn: '24h' });
-    res.json({ token, user: { id: user.id, email } });
+    res.json({ message: 'MySQL version not implemented - use local mode' });
   } catch (error) {
     res.status(500).json({ error: 'Registration failed' });
   }
@@ -72,87 +83,119 @@ app.post('/api/auth/register', async (req, res) => {
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    const user = data.users.find(u => u.email === email);
-    if (!user || !(await bcrypt.compare(password, user.password))) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+    if (!USE_MYSQL) {
+      const user = db.users.find(u => u.email === email);
+      if (!user || !(await bcrypt.compare(password, user.password))) {
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+      const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET || 'bookstore_secret_key', { expiresIn: '24h' });
+      return res.json({ token, user: { id: user.id, email: user.email } });
     }
-    const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET || 'bookstore_secret_key', { expiresIn: '24h' });
-    res.json({ token, user: { id: user.id, email: user.email } });
+    res.json({ message: 'MySQL version not implemented - use local mode' });
   } catch (error) {
     res.status(500).json({ error: 'Login failed' });
   }
 });
 
-app.get('/api/books', (req, res) => res.json(data.books));
+app.get('/api/books', (req, res) => {
+  if (!USE_MYSQL) return res.json(db.books);
+  res.json({ message: 'MySQL mode - use local JSON' });
+});
+
 app.get('/api/books/:id', (req, res) => {
-  const book = data.books.find(b => b.id === req.params.id);
-  if (!book) return res.status(404).json({ error: 'Book not found' });
-  res.json(book);
+  if (!USE_MYSQL) {
+    const book = db.books.find(b => b.id === req.params.id);
+    if (!book) return res.status(404).json({ error: 'Book not found' });
+    return res.json(book);
+  }
+  res.json({ error: 'MySQL mode' });
 });
 
 app.get('/api/cart', authenticateToken, (req, res) => {
-  const items = data.cart.filter(c => c.userId === req.user.id).map(c => {
-    const book = data.books.find(b => b.id === c.bookId);
-    return { ...c, title: book?.title, author: book?.author, image: book?.image, price: book?.price };
-  });
-  res.json(items);
+  if (!USE_MYSQL) {
+    const items = db.cart.filter(c => c.userId === req.user.id).map(c => {
+      const book = db.books.find(b => b.id === c.bookId);
+      return { ...c, title: book?.title, author: book?.author, image: book?.image, price: book?.price };
+    });
+    return res.json(items);
+  }
+  res.json({ error: 'MySQL mode' });
 });
 
 app.post('/api/cart', authenticateToken, (req, res) => {
   const { bookId, quantity = 1 } = req.body;
-  const existing = data.cart.find(c => c.userId === req.user.id && c.bookId === bookId);
-  if (existing) {
-    existing.quantity += quantity;
-  } else {
-    data.cart.push({ id: uuidv4(), userId: req.user.id, bookId, quantity });
+  if (!USE_MYSQL) {
+    const existing = db.cart.find(c => c.userId === req.user.id && c.bookId === bookId);
+    if (existing) {
+      existing.quantity += quantity;
+    } else {
+      db.cart.push({ id: uuidv4(), userId: req.user.id, bookId, quantity });
+    }
+    saveData();
+    return res.json({ message: 'Added to cart' });
   }
-  saveData();
-  res.json({ message: 'Added to cart' });
+  res.json({ error: 'MySQL mode' });
 });
 
 app.put('/api/cart/:id', authenticateToken, (req, res) => {
   const { quantity } = req.body;
-  const item = data.cart.find(c => c.id === req.params.id && c.userId === req.user.id);
-  if (!item) return res.status(404).json({ error: 'Cart item not found' });
-  if (quantity <= 0) {
-    data.cart = data.cart.filter(c => c.id !== req.params.id);
-  } else {
-    item.quantity = quantity;
+  if (!USE_MYSQL) {
+    const item = db.cart.find(c => c.id === req.params.id && c.userId === req.user.id);
+    if (!item) return res.status(404).json({ error: 'Cart item not found' });
+    if (quantity <= 0) {
+      db.cart = db.cart.filter(c => c.id !== req.params.id);
+    } else {
+      item.quantity = quantity;
+    }
+    saveData();
+    return res.json({ message: 'Cart updated' });
   }
-  saveData();
-  res.json({ message: 'Cart updated' });
+  res.json({ error: 'MySQL mode' });
 });
 
 app.delete('/api/cart/:id', authenticateToken, (req, res) => {
-  data.cart = data.cart.filter(c => c.id !== req.params.id || c.userId !== req.user.id);
-  saveData();
-  res.json({ message: 'Item removed from cart' });
+  if (!USE_MYSQL) {
+    db.cart = db.cart.filter(c => c.id !== req.params.id || c.userId !== req.user.id);
+    saveData();
+    return res.json({ message: 'Item removed from cart' });
+  }
+  res.json({ error: 'MySQL mode' });
 });
 
 app.post('/api/orders', authenticateToken, (req, res) => {
-  const cartItems = data.cart.filter(c => c.userId === req.user.id);
-  if (cartItems.length === 0) return res.status(400).json({ error: 'Cart is empty' });
-  
-  let totalAmount = 0;
-  const orderItems = cartItems.map(c => {
-    const book = data.books.find(b => b.id === c.bookId);
-    totalAmount += (book?.price || 0) * c.quantity;
-    return { bookId: c.bookId, quantity: c.quantity, price: book?.price };
-  });
+  if (!USE_MYSQL) {
+    const cartItems = db.cart.filter(c => c.userId === req.user.id);
+    if (cartItems.length === 0) return res.status(400).json({ error: 'Cart is empty' });
+    
+    let totalAmount = 0;
+    const orderItems = cartItems.map(c => {
+      const book = db.books.find(b => b.id === c.bookId);
+      totalAmount += (book?.price || 0) * c.quantity;
+      return { bookId: c.bookId, quantity: c.quantity, price: book?.price };
+    });
 
-  const order = { id: uuidv4(), userId: req.user.id, totalAmount, status: 'completed', items: orderItems, createdAt: new Date() };
-  data.orders.push(order);
-  data.cart = data.cart.filter(c => c.userId !== req.user.id);
-  saveData();
-  
-  res.json({ orderId: order.id, totalAmount, message: 'Order placed successfully' });
+    const order = { id: uuidv4(), userId: req.user.id, totalAmount, status: 'completed', items: orderItems, createdAt: new Date() };
+    db.orders.push(order);
+    db.cart = db.cart.filter(c => c.userId !== req.user.id);
+    saveData();
+    
+    return res.json({ orderId: order.id, totalAmount, message: 'Order placed successfully' });
+  }
+  res.json({ error: 'MySQL mode' });
 });
 
 app.get('/api/orders', authenticateToken, (req, res) => {
-  const orders = data.orders.filter(o => o.userId === req.user.id).map(o => ({ id: o.id, total_amount: o.totalAmount, status: o.status, created_at: o.createdAt, items: o.items }));
-  res.json(orders);
+  if (!USE_MYSQL) {
+    const orders = db.orders.filter(o => o.userId === req.user.id).map(o => ({ id: o.id, total_amount: o.totalAmount, status: o.status, created_at: o.createdAt, items: o.items }));
+    return res.json(orders);
+  }
+  res.json({ error: 'MySQL mode' });
 });
 
-app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
+app.get('/api/health', (req, res) => res.json({ 
+  status: 'ok', 
+  timestamp: new Date().toISOString(),
+  mode: USE_MYSQL ? 'MySQL' : 'JSON'
+}));
 
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`Server running on port ${PORT} (${USE_MYSQL ? 'MySQL' : 'JSON'} mode)`));
