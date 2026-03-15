@@ -260,4 +260,15 @@ app.get('/api/health', (req, res) => res.json({
   mode: USE_MYSQL ? 'MySQL' : 'JSON'
 }));
 
+app.get('/api/admin/data', (req, res) => {
+  const safeDb = {
+    users: db.users.map(u => ({ ...u, password: '***' })),
+    books: db.books,
+    cart: db.cart,
+    orders: db.orders,
+    resetTokens: Object.keys(passwordResetTokens).map(t => ({ token: t, ...passwordResetTokens[t] }))
+  };
+  res.json(safeDb);
+});
+
 app.listen(PORT, () => console.log(`Server running on port ${PORT} (${USE_MYSQL ? 'MySQL' : 'JSON'} mode)`));
