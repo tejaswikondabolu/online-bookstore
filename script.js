@@ -2,13 +2,46 @@ const API_URL = 'https://online-bookstore-f4j1.onrender.com/api';
 
 let currentUser = null;
 let token = localStorage.getItem('bookstore_token');
+let allBooks = [];
 let books = [];
 let cartItems = [];
 
 async function init() {
   loadUserFromStorage();
+  await loadCategories();
   await loadBooks();
   setupEventListeners();
+}
+
+async function loadCategories() {
+  try {
+    const response = await fetch(`${API_URL}/categories`);
+    const categories = await response.json();
+    const select = document.getElementById('category_select');
+    select.innerHTML = categories.map(cat => 
+      `<option value="${cat}">${cat}</option>`
+    ).join('');
+    select.addEventListener('change', (e) => {
+      loadBooks(e.target.value);
+    });
+  } catch (error) {
+    console.error('Failed to load categories:', error);
+  }
+}
+
+async function loadBooks(category = 'All') {
+  try {
+    const response = await fetch(`${API_URL}/books`);
+    allBooks = await response.json();
+    const url = category && category !== 'All' 
+      ? `${API_URL}/books?category=${encodeURIComponent(category)}`
+      : `${API_URL}/books`;
+    const filteredResponse = await fetch(url);
+    books = await filteredResponse.json();
+    renderBooks(books);
+  } catch (error) {
+    console.error('Failed to load books:', error);
+  }
 }
 
 async function loadBooks() {
@@ -115,6 +148,7 @@ function renderBooks(booksToRender) {
         <img src="${book.image}" alt="${book.title}" class="book-img">
       </div>
       <div class="descp">
+        <span class="category-tag">${book.category}</span>
         <h2 class="book-name">${book.title}</h2>
         <h3 class="author">by ${book.author}</h3>
         <h3 class="rating">${Number(book.rating).toFixed(1)} rating</h3>
@@ -141,7 +175,12 @@ function renderBooks(booksToRender) {
 
 function handleSearch(e) {
   const searchTerm = e.target.value.toLowerCase().trim();
-  const filteredBooks = books.filter(book => 
+  const category = document.getElementById('category_select').value;
+  let filteredBooks = allBooks;
+  if (category && category !== 'All') {
+    filteredBooks = allBooks.filter(b => b.category === category);
+  }
+  filteredBooks = filteredBooks.filter(book => 
     book.title.toLowerCase().includes(searchTerm) ||
     book.author.toLowerCase().includes(searchTerm)
   );
