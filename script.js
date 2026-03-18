@@ -44,8 +44,8 @@ async function loadCategories() {
   const select = document.getElementById('category_select');
   const defaultCategories = ['All', 'Programming', 'Fiction', 'Non-Fiction'];
   
-  select.innerHTML = defaultCategories.map(cat => 
-    `<option value="${cat}">${cat}</option>`
+  select.innerHTML = defaultCategories.map((cat, index) => 
+    `<option value="${cat}" ${index === 0 ? 'selected' : ''}>${cat}</option>`
   ).join('');
   
   select.addEventListener('change', (e) => {
