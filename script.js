@@ -18,9 +18,11 @@ async function loadCategories() {
     const response = await fetch(`${API_URL}/categories`);
     const categories = await response.json();
     const select = document.getElementById('category_select');
-    select.innerHTML = categories.map(cat => 
-      `<option value="${cat}">${cat}</option>`
-    ).join('');
+    if (categories && categories.length > 0) {
+      select.innerHTML = categories.map(cat => 
+        `<option value="${cat}">${cat}</option>`
+      ).join('');
+    }
     select.addEventListener('change', (e) => {
       loadBooks(e.target.value);
     });
@@ -38,16 +40,6 @@ async function loadBooks(category = 'All') {
       : `${API_URL}/books`;
     const filteredResponse = await fetch(url);
     books = await filteredResponse.json();
-    renderBooks(books);
-  } catch (error) {
-    console.error('Failed to load books:', error);
-  }
-}
-
-async function loadBooks() {
-  try {
-    const response = await fetch(`${API_URL}/books`);
-    books = await response.json();
     renderBooks(books);
   } catch (error) {
     console.error('Failed to load books:', error);
@@ -148,7 +140,7 @@ function renderBooks(booksToRender) {
         <img src="${book.image}" alt="${book.title}" class="book-img">
       </div>
       <div class="descp">
-        <span class="category-tag">${book.category}</span>
+        <span class="category-tag">${book.category || ''}</span>
         <h2 class="book-name">${book.title}</h2>
         <h3 class="author">by ${book.author}</h3>
         <h3 class="rating">${Number(book.rating).toFixed(1)} rating</h3>
