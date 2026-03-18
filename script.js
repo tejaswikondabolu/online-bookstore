@@ -1,5 +1,31 @@
 const API_URL = 'https://online-bookstore-f4j1.onrender.com/api';
 
+const BOOK_CATEGORIES = {
+  'Clean Code': 'Programming',
+  'Introduction to Algorithms': 'Programming',
+  'The Pragmatic Programmer': 'Programming',
+  'Design Patterns': 'Programming',
+  'Computer Systems': 'Programming',
+  'Artificial Intelligence': 'Programming',
+  'Database System Concepts': 'Programming',
+  'Operating System Concepts': 'Programming',
+  'The Great Gatsby': 'Fiction',
+  'To Kill a Mockingbird': 'Fiction',
+  '1984': 'Fiction',
+  'Pride and Prejudice': 'Fiction',
+  'The Catcher in the Rye': 'Fiction',
+  'Sapiens': 'Non-Fiction',
+  'Atomic Habits': 'Non-Fiction',
+  'The Power of Now': 'Non-Fiction',
+  'A Brief History of Time': 'Non-Fiction',
+  'Educated': 'Non-Fiction'
+};
+
+function assignCategory(book) {
+  if (book.category) return book;
+  return { ...book, category: BOOK_CATEGORIES[book.title] || 'Programming' };
+}
+
 let currentUser = null;
 let token = localStorage.getItem('bookstore_token');
 let allBooks = [];
@@ -17,19 +43,6 @@ async function loadCategories() {
   const select = document.getElementById('category_select');
   const defaultCategories = ['All', 'Programming', 'Fiction', 'Non-Fiction'];
   
-  try {
-    const response = await fetch(`${API_URL}/categories`);
-    const categories = await response.json();
-    if (categories && categories.length > 0) {
-      select.innerHTML = categories.map(cat => 
-        `<option value="${cat}">${cat}</option>`
-      ).join('');
-      return;
-    }
-  } catch (error) {
-    console.error('Failed to load categories:', error);
-  }
-  
   select.innerHTML = defaultCategories.map(cat => 
     `<option value="${cat}">${cat}</option>`
   ).join('');
@@ -42,12 +55,13 @@ async function loadCategories() {
 async function loadBooks(category = 'All') {
   try {
     const response = await fetch(`${API_URL}/books`);
-    allBooks = await response.json();
-    const url = category && category !== 'All' 
-      ? `${API_URL}/books?category=${encodeURIComponent(category)}`
-      : `${API_URL}/books`;
-    const filteredResponse = await fetch(url);
-    books = await filteredResponse.json();
+    const rawBooks = await response.json();
+    allBooks = rawBooks.map(assignCategory);
+    if (category && category !== 'All') {
+      books = allBooks.filter(b => b.category === category);
+    } else {
+      books = allBooks;
+    }
     renderBooks(books);
   } catch (error) {
     console.error('Failed to load books:', error);
@@ -180,10 +194,12 @@ function handleSearch(e) {
   if (category && category !== 'All') {
     filteredBooks = allBooks.filter(b => b.category === category);
   }
-  filteredBooks = filteredBooks.filter(book => 
-    book.title.toLowerCase().includes(searchTerm) ||
-    book.author.toLowerCase().includes(searchTerm)
-  );
+  if (searchTerm) {
+    filteredBooks = filteredBooks.filter(book => 
+      book.title.toLowerCase().includes(searchTerm) ||
+      book.author.toLowerCase().includes(searchTerm)
+    );
+  }
   renderBooks(filteredBooks);
 }
 
