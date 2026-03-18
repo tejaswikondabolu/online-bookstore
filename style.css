@@ -861,5 +861,12 @@ main {
 #category_select option {
     background: white;
     color: #333;
-    padding: 10px;
+    padding: 12px 15px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+#category_select option:hover, #category_select option:focus, #category_select option:checked {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
 }
