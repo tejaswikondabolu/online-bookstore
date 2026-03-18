@@ -169,7 +169,7 @@ function renderBooks(booksToRender) {
         <img src="${book.image}" alt="${book.title}" class="book-img">
       </div>
       <div class="descp">
-        <span class="category-tag">${book.category || ''}</span>
+        <span class="category-tag">${book.category || 'Programming'}</span>
         <h2 class="book-name">${book.title}</h2>
         <h3 class="author">by ${book.author}</h3>
         <h3 class="rating">${Number(book.rating).toFixed(1)} rating</h3>
