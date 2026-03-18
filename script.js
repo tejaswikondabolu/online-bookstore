@@ -1,29 +1,30 @@
 const API_URL = 'https://online-bookstore-f4j1.onrender.com/api';
 
-const BOOK_CATEGORIES = {
-  'Clean Code': 'Programming',
-  'Introduction to Algorithms': 'Programming',
-  'The Pragmatic Programmer': 'Programming',
-  'Design Patterns': 'Programming',
-  'Computer Systems': 'Programming',
-  'Artificial Intelligence': 'Programming',
-  'Database System Concepts': 'Programming',
-  'Operating System Concepts': 'Programming',
-  'The Great Gatsby': 'Fiction',
-  'To Kill a Mockingbird': 'Fiction',
-  '1984': 'Fiction',
-  'Pride and Prejudice': 'Fiction',
-  'The Catcher in the Rye': 'Fiction',
-  'Sapiens': 'Non-Fiction',
-  'Atomic Habits': 'Non-Fiction',
-  'The Power of Now': 'Non-Fiction',
-  'A Brief History of Time': 'Non-Fiction',
-  'Educated': 'Non-Fiction'
-};
+const FALLBACK_BOOKS = [
+  { title: 'Clean Code', author: 'Robert C. Martin', category: 'Programming', image: 'https://m.media-amazon.com/images/I/41jEbK-jG+L.jpg', rating: 4.7, info: 'A handbook of agile software craftsmanship', price: 29.99 },
+  { title: 'Introduction to Algorithms', author: 'Thomas H. Cormen', category: 'Programming', image: 'https://covers.openlibrary.org/b/isbn/9780262033848-L.jpg', rating: 4.8, info: 'Comprehensive textbook on algorithms', price: 89.99 },
+  { title: 'The Pragmatic Programmer', author: 'David Thomas', category: 'Programming', image: 'https://covers.openlibrary.org/b/isbn/9780135957059-L.jpg', rating: 4.6, info: 'Guide to becoming a better programmer', price: 34.99 },
+  { title: 'Design Patterns', author: 'Erich Gamma', category: 'Programming', image: 'https://covers.openlibrary.org/b/isbn/9780201633610-L.jpg', rating: 4.5, info: 'Object-oriented software design solutions', price: 44.99 },
+  { title: 'Computer Systems', author: 'Randal E. Bryant', category: 'Programming', image: 'https://covers.openlibrary.org/b/isbn/9780134092669-L.jpg', rating: 4.9, info: "Programmer's perspective on computer systems", price: 79.99 },
+  { title: 'Artificial Intelligence', author: 'Stuart Russell', category: 'Programming', image: 'https://covers.openlibrary.org/b/isbn/9780136042594-L.jpg', rating: 4.7, info: 'Modern approach to AI', price: 69.99 },
+  { title: 'Database System Concepts', author: 'Abraham Silberschatz', category: 'Programming', image: 'https://covers.openlibrary.org/b/isbn/9780078022159-L.jpg', rating: 4.4, info: 'Comprehensive database management coverage', price: 54.99 },
+  { title: 'Operating System Concepts', author: 'Abraham Silberschatz', category: 'Programming', image: 'https://covers.openlibrary.org/b/isbn/9781118063330-L.jpg', rating: 4.3, info: 'Fundamental OS design concepts', price: 64.99 },
+  { title: 'The Great Gatsby', author: 'F. Scott Fitzgerald', category: 'Fiction', image: 'https://covers.openlibrary.org/b/isbn/9780743273565-L.jpg', rating: 4.5, info: 'A story of decadence and excess', price: 12.99 },
+  { title: 'To Kill a Mockingbird', author: 'Harper Lee', category: 'Fiction', image: 'https://covers.openlibrary.org/b/isbn/9780061120084-L.jpg', rating: 4.8, info: 'A classic of modern American literature', price: 14.99 },
+  { title: '1984', author: 'George Orwell', category: 'Fiction', image: 'https://covers.openlibrary.org/b/isbn/9780451524935-L.jpg', rating: 4.7, info: 'A dystopian social science fiction', price: 11.99 },
+  { title: 'Pride and Prejudice', author: 'Jane Austen', category: 'Fiction', image: 'https://covers.openlibrary.org/b/isbn/9780141439518-L.jpg', rating: 4.6, info: 'A romantic novel of manners', price: 9.99 },
+  { title: 'The Catcher in the Rye', author: 'J.D. Salinger', category: 'Fiction', image: 'https://covers.openlibrary.org/b/isbn/9780316769488-L.jpg', rating: 4.3, info: 'A story of teenage rebellion', price: 10.99 },
+  { title: 'Sapiens', author: 'Yuval Noah Harari', category: 'Non-Fiction', image: 'https://covers.openlibrary.org/b/isbn/9780062316097-L.jpg', rating: 4.6, info: 'A brief history of humankind', price: 18.99 },
+  { title: 'Atomic Habits', author: 'James Clear', category: 'Non-Fiction', image: 'https://covers.openlibrary.org/b/isbn/9780735211292-L.jpg', rating: 4.8, info: 'Tiny changes, remarkable results', price: 16.99 },
+  { title: 'The Power of Now', author: 'Eckhart Tolle', category: 'Non-Fiction', image: 'https://covers.openlibrary.org/b/isbn/9781577314806-L.jpg', rating: 4.5, info: 'A guide to spiritual enlightenment', price: 14.99 },
+  { title: 'A Brief History of Time', author: 'Stephen Hawking', category: 'Non-Fiction', image: 'https://covers.openlibrary.org/b/isbn/9780553380163-L.jpg', rating: 4.7, info: 'From Big Bang to Black Holes', price: 15.99 },
+  { title: 'Educated', author: 'Tara Westover', category: 'Non-Fiction', image: 'https://covers.openlibrary.org/b/isbn/9780399590504-L.jpg', rating: 4.6, info: 'A memoir of transformation', price: 17.99 }
+];
 
 function assignCategory(book) {
   if (book.category) return book;
-  return { ...book, category: BOOK_CATEGORIES[book.title] || 'Programming' };
+  const fallback = FALLBACK_BOOKS.find(b => b.title === book.title);
+  return fallback || { ...book, category: 'Programming' };
 }
 
 let currentUser = null;
@@ -56,7 +57,10 @@ async function loadBooks(category = 'All') {
   try {
     const response = await fetch(`${API_URL}/books`);
     const rawBooks = await response.json();
-    allBooks = rawBooks.map(assignCategory);
+    const apiBooks = rawBooks.map(assignCategory);
+    const apiTitles = apiBooks.map(b => b.title);
+    const missingBooks = FALLBACK_BOOKS.filter(b => !apiTitles.includes(b.title));
+    allBooks = [...apiBooks, ...missingBooks];
     if (category && category !== 'All') {
       books = allBooks.filter(b => b.category === category);
     } else {
@@ -65,6 +69,9 @@ async function loadBooks(category = 'All') {
     renderBooks(books);
   } catch (error) {
     console.error('Failed to load books:', error);
+    allBooks = FALLBACK_BOOKS;
+    books = category && category !== 'All' ? allBooks.filter(b => b.category === category) : allBooks;
+    renderBooks(books);
   }
 }
 
