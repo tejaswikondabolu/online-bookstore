@@ -14,21 +14,29 @@ async function init() {
 }
 
 async function loadCategories() {
+  const select = document.getElementById('category_select');
+  const defaultCategories = ['All', 'Programming', 'Fiction', 'Non-Fiction'];
+  
   try {
     const response = await fetch(`${API_URL}/categories`);
     const categories = await response.json();
-    const select = document.getElementById('category_select');
     if (categories && categories.length > 0) {
       select.innerHTML = categories.map(cat => 
         `<option value="${cat}">${cat}</option>`
       ).join('');
+      return;
     }
-    select.addEventListener('change', (e) => {
-      loadBooks(e.target.value);
-    });
   } catch (error) {
     console.error('Failed to load categories:', error);
   }
+  
+  select.innerHTML = defaultCategories.map(cat => 
+    `<option value="${cat}">${cat}</option>`
+  ).join('');
+  
+  select.addEventListener('change', (e) => {
+    loadBooks(e.target.value);
+  });
 }
 
 async function loadBooks(category = 'All') {
