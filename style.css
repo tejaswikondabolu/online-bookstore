@@ -818,21 +818,14 @@ main {
 }
 
 #category_select {
-    appearance: none;
-    -webkit-appearance: none;
-    -moz-appearance: none;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
-    padding: 10px 35px 10px 15px;
+    padding: 10px 30px 10px 15px;
     border: none;
     border-radius: 25px;
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
-    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3e%3cpath d='M7 10l5 5 5-5z'/%3e%3c/svg%3e");
-    background-repeat: no-repeat;
-    background-position: right 10px center;
-    background-size: 20px;
     min-width: 160px;
 }
 
@@ -854,6 +847,6 @@ main {
 }
 
 #category_select option:hover, #category_select option:focus, #category_select option:checked {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #667eea;
     color: white;
 }

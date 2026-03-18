@@ -42,14 +42,14 @@ async function init() {
 
 async function loadCategories() {
   const select = document.getElementById('category_select');
-  const defaultCategories = ['All', 'Programming', 'Fiction', 'Non-Fiction'];
+  const defaultCategories = ['Browse Categories', 'Programming', 'Fiction', 'Non-Fiction'];
   
   select.innerHTML = defaultCategories.map((cat, index) => 
-    `<option value="${cat}" ${index === 0 ? 'selected' : ''}>${cat}</option>`
+    `<option value="${cat === 'Browse Categories' ? 'All' : cat}" ${index === 0 ? 'selected' : ''}>${cat}</option>`
   ).join('');
   
   select.addEventListener('change', (e) => {
-    loadBooks(e.target.value);
+    loadBooks(e.target.value === 'Browse Categories' ? 'All' : e.target.value);
   });
 }
 
